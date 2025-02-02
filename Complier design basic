@@ -1,0 +1,144 @@
+#include <iostream>
+#include <string>
+#include <cctype>
+#include <stdexcept>
+
+
+enum class TokenType {
+    NUMBER,
+    PLUS,
+    MINUS,
+    MULTIPLY,
+    DIVIDE,
+    LPAREN,
+    RPAREN,
+    END
+};
+
+
+struct Token {
+    TokenType type;
+    double value;
+};
+
+
+class Lexer {
+public:
+    Lexer(const std::string& input) : input_(input), pos_(0) {}
+
+    Token getNextToken() {
+        while (pos_ < input_.size() && std::isspace(input_[pos_])) {
+            pos_++;
+        }
+
+        if (pos_ >= input_.size()) {
+            return {TokenType::END, 0};
+        }
+
+        if (std::isdigit(input_[pos_])) {
+            double value = 0;
+            while (pos_ < input_.size() && std::isdigit(input_[pos_])) {
+                value = value * 10 + (input_[pos_] - '0');
+                pos_++;
+            }
+            return {TokenType::NUMBER, value};
+        }
+
+        switch (input_[pos_]) {
+            case '+':
+                pos_++;
+                return {TokenType::PLUS, 0};
+            case '-':
+                pos_++;
+                return {TokenType::MINUS, 0};
+            case '*':
+                pos_++;
+                return {TokenType::MULTIPLY, 0};
+            case '/':
+                pos_++;
+                return {TokenType::DIVIDE, 0};
+            case '(':
+                pos_++;
+                return {TokenType::LPAREN, 0};
+            case ')':
+                pos_++;
+                return {TokenType::RPAREN, 0};
+            default:
+                throw std::runtime_error("Invalid character");
+        }
+    }
+
+private:
+    const std::string& input_;
+    size_t pos_;
+};
+
+
+class Parser {
+public:
+    Parser(Lexer& lexer) : lexer_(lexer) {}
+
+    double parseExpression() {
+        double result = parseTerm();
+        while (true) {
+            Token token = lexer_.getNextToken();
+            if (token.type == TokenType::PLUS) {
+                result += parseTerm();
+            } else if (token.type == TokenType::MINUS) {
+                result -= parseTerm();
+            } else {
+                return result;
+            }
+        }
+    }
+
+    double parseTerm() {
+        double result = parseFactor();
+        while (true) {
+            Token token = lexer_.getNextToken();
+            if (token.type == TokenType::MULTIPLY) {
+                result *= parseFactor();
+            } else if (token.type == TokenType::DIVIDE) {
+                result /= parseFactor();
+            } else {
+                return result;
+            }
+        }
+    }
+
+    double parseFactor() {
+        Token token = lexer_.getNextToken();
+        if (token.type == TokenType::NUMBER) {
+            return token.value;
+        } else if (token.type == TokenType::LPAREN) {
+            double result = parseExpression();
+            if (lexer_.getNextToken().type != TokenType::RPAREN) {
+                throw std::runtime_error("Unbalanced parentheses");
+            }
+            return result;
+        } else {
+            throw std::runtime_error("Invalid syntax");
+        }
+    }
+
+private:
+    Lexer& lexer_;
+};
+
+int main() {
+    std::string input;
+    std::cout << "Enter an arithmetic expression: ";
+    std::getline(std::cin, input);
+
+    Lexer lexer(input);
+    Parser parser(lexer);
+
+    try {
+        double result = parser.parseExpression();
+        std::cout << "Result: " << result << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
+    return 0;
+}
